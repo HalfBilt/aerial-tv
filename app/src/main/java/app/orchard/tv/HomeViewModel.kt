@@ -1,6 +1,10 @@
 package app.orchard.tv
 
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,7 +34,7 @@ import kotlinx.coroutines.withContext
 
 sealed interface Overlay {
     data object None : Overlay
-    data class ControlCenter(val page: CcPage = CcPage.Main) : Overlay
+    data class ControlCenter(val page: CcPage = CcPage.Main, val direct: Boolean = false) : Overlay
     data class AppMenu(val key: String, val anchor: Rect) : Overlay
     data object HiddenApps : Overlay
     data object Wallpaper : Overlay
@@ -74,6 +78,15 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
         reload()
         // A tile picture set or removed from the phone page.
         viewModelScope.launch { snapshotFlow { CustomIcons.version }.drop(1).collect { reload() } }
+        // Aerial is direct-boot aware so it can draw before the stock launcher does. Until the
+        // user is unlocked the package manager only answers with direct-boot aware apps, so the
+        // first load is short: load again the moment credential storage is available.
+        if (Build.VERSION.SDK_INT >= 24) {
+            val filter = IntentFilter(Intent.ACTION_USER_UNLOCKED)
+            app.registerReceiver(object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) = reload()
+            }, filter)
+        }
     }
 
     /** PackageManager's change counter when the list was last loaded (Android 8+). */
