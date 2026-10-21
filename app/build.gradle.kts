@@ -10,6 +10,8 @@ plugins {
 android {
     namespace = "app.orchard.tv"
     compileSdk = 36
+    // 36 is the build-tools release installed here; the default (35) cannot be downloaded.
+    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         applicationId = "app.orchard.tv"
