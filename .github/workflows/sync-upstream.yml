@@ -1,0 +1,42 @@
+name: sync-upstream
+
+# 每天把上游 pengchujin/aerial-tv 的新版本合进 tcl 分支，触发构建。
+# 冲突时这个 workflow 会失败（exit 1），需要人工解一次，之后继续自动。
+
+on:
+  schedule:
+    - cron: "37 18 * * *"      # 每天 02:37（北京时间）
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: tcl
+          fetch-depth: 0
+
+      - name: merge upstream
+        run: |
+          git config user.name  "HalfBilt"
+          git config user.email "HalfBilt@users.noreply.github.com"
+          git remote add upstream https://github.com/pengchujin/aerial-tv.git
+          git fetch --no-tags upstream main
+          BEFORE=$(git rev-parse HEAD)
+          if git merge-base --is-ancestor upstream/main HEAD; then
+            echo "upstream has nothing new"
+            exit 0
+          fi
+          if git merge --no-edit upstream/main; then
+            echo "merged cleanly"
+          else
+            echo "::error::上游改动和我们的补丁冲突了，需要人工解决。"
+            git merge --abort
+            exit 1
+          fi
+          git push origin HEAD:tcl
+          echo "before=$BEFORE"

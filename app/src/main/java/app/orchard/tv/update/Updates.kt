@@ -40,7 +40,10 @@ import java.net.URL
 object Updates {
     private const val TAG = "AerialUpdates"
     private const val PREFS = "updates"
-    private const val VERSION_URL = "https://aerial.qust.me/download/version.txt"
+    // This fork publishes its own releases (upstream's plus the TCL patches), so the version and
+    // the APK both come from the fork. jsDelivr first: it has nodes in China, where GitHub's own
+    // release host is unreachable from most TVs. raw.githubusercontent as the second source.
+    private const val VERSION_URL = "https://cdn.jsdelivr.net/gh/HalfBilt/aerial-tv@release/version.txt"
     private const val CHECK_EVERY_MS = 3 * 60 * 60 * 1000L
     private const val RETRY_MS = 10 * 60 * 1000L
 
@@ -213,8 +216,8 @@ object Updates {
         }
         val name = "aerial-${BuildConfig.FLAVOR}.apk"
         val sources = listOf(
-            "https://aerial.qust.me/download/$name",
-            "https://github.com/pengchujin/aerial-tv/releases/latest/download/$name",
+            "https://cdn.jsdelivr.net/gh/HalfBilt/aerial-tv@release/$name",
+            "https://raw.githubusercontent.com/HalfBilt/aerial-tv/release/$name",
         )
         for (url in sources) {
             val ok = runCatching { download(url, file) }
