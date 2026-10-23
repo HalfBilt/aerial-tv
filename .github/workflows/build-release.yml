@@ -89,7 +89,9 @@ jobs:
           APK=app/build/outputs/apk/standard/release/app-standard-release.apk
           VERSION=$(grep -m1 'versionName = ' app/build.gradle.kts | sed -E 's/.*"([0-9.]+)".*/\1/')
           test -s "$APK" || { echo "::error::APK 没生成"; exit 1; }
-          echo "version=$VERSION size=$(stat -c%s "$APK")"
+          # Keep the APK outside the repo: the orphan switch below clears the working tree.
+          cp "$APK" /tmp/aerial-release.apk
+          echo "version=$VERSION size=$(stat -c%s /tmp/aerial-release.apk)"
 
           git config user.name  "HalfBilt"
           git config user.email "HalfBilt@users.noreply.github.com"
@@ -97,7 +99,7 @@ jobs:
           git reset --hard
           git rm -rq --cached . >/dev/null 2>&1 || true
           rm -rf .github app gradle docs site tools *.md *.kts gradlew* 2>/dev/null || true
-          cp "$APK" aerial-standard.apk
+          cp /tmp/aerial-release.apk aerial-standard.apk
           printf '%s\n' "$VERSION" > version.txt
           git add aerial-standard.apk version.txt
           git commit -q -m "release $VERSION"
