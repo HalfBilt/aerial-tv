@@ -41,9 +41,12 @@ object Updates {
     private const val TAG = "AerialUpdates"
     private const val PREFS = "updates"
     // This fork publishes its own releases (upstream's plus the TCL patches), so the version and
-    // the APK both come from the fork. jsDelivr first: it has nodes in China, where GitHub's own
-    // release host is unreachable from most TVs. raw.githubusercontent as the second source.
-    private const val VERSION_URL = "https://cdn.jsdelivr.net/gh/HalfBilt/aerial-tv@release/version.txt"
+    // the APK both come from the fork. GitHub Pages first: it is reachable from the TV and has no
+    // CDN cache, so a new release shows up at once. jsDelivr second, as a China-friendly backup.
+    private val VERSION_URLS = listOf(
+        "https://halfbilt.github.io/aerial-tv/version.txt",
+        "https://cdn.jsdelivr.net/gh/HalfBilt/aerial-tv@release/version.txt",
+    )
     private const val CHECK_EVERY_MS = 3 * 60 * 60 * 1000L
     private const val RETRY_MS = 10 * 60 * 1000L
 
@@ -80,10 +83,12 @@ object Updates {
         lastAttempt = now
         scope.launch {
             val latest = withContext(Dispatchers.IO) {
-                runCatching { read(VERSION_URL).trim().removePrefix("v") }
-                    .onFailure { Log.w(TAG, "could not check for a new version", it) }
-                    .getOrNull()
-                    ?.takeIf { it.matches(Regex("\\d+(\\.\\d+)*")) }
+                VERSION_URLS.firstNotNullOfOrNull { url ->
+                    runCatching { read(url).trim().removePrefix("v") }
+                        .onFailure { Log.w(TAG, "could not read $url", it) }
+                        .getOrNull()
+                        ?.takeIf { it.matches(Regex("\\d+(\\.\\d+)*")) }
+                }
             } ?: return@launch
             prefs.edit { putString("latest", latest); putLong("checked_at", System.currentTimeMillis()) }
             available = latest.takeIf { newer(it, current) }
@@ -216,8 +221,8 @@ object Updates {
         }
         val name = "aerial-${BuildConfig.FLAVOR}.apk"
         val sources = listOf(
+            "https://halfbilt.github.io/aerial-tv/$name",
             "https://cdn.jsdelivr.net/gh/HalfBilt/aerial-tv@release/$name",
-            "https://raw.githubusercontent.com/HalfBilt/aerial-tv/release/$name",
         )
         for (url in sources) {
             val ok = runCatching { download(url, file) }
